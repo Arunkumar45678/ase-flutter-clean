@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
 import '../models/user_model.dart';
+import '../services/api_service.dart';
+import 'home_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
-  final String email; // from Firebase login
-
+  final String email;
   const RegistrationScreen({super.key, required this.email});
 
   @override
@@ -14,48 +14,72 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final nameCtrl = TextEditingController();
-  final phoneCtrl = TextEditingController();
-
+  String name = "";
+  String phone = "";
   String gender = "Male";
   String district = "";
   String mandal = "";
   String village = "";
-
-  bool accepted = false;
+  bool agreed = false;
   bool loading = false;
+
+  Future<void> submit() async {
+    if (!_formKey.currentState!.validate() || !agreed) return;
+
+    setState(() => loading = true);
+
+    UserModel user = UserModel(
+      email: widget.email,
+      name: name,
+      phone: phone,
+      gender: gender,
+      district: district,
+      mandal: mandal,
+      village: village,
+    );
+
+    bool success = await ApiService.registerUser(user);
+
+    setState(() => loading = false);
+
+    if (success && context.mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => HomeScreen(name: name)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Registration failed")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Complete Registration")),
+      appBar: AppBar(title: const Text("Registration")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-
-              // EMAIL (READ ONLY)
               TextFormField(
                 initialValue: widget.email,
                 readOnly: true,
                 decoration: const InputDecoration(labelText: "Email"),
               ),
-
               TextFormField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: "Full Name"),
+                decoration: const InputDecoration(labelText: "Name"),
+                onChanged: (v) => name = v,
                 validator: (v) => v!.isEmpty ? "Required" : null,
               ),
-
               TextFormField(
-                controller: phoneCtrl,
+                decoration: const InputDecoration(labelText: "Phone"),
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: "Phone Number"),
+                onChanged: (v) => phone = v,
                 validator: (v) => v!.length < 10 ? "Invalid phone" : null,
               ),
-
               DropdownButtonFormField(
                 value: gender,
                 items: const [
@@ -65,26 +89,27 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 onChanged: (v) => gender = v!,
                 decoration: const InputDecoration(labelText: "Gender"),
               ),
-
               TextFormField(
                 decoration: const InputDecoration(labelText: "District"),
                 onChanged: (v) => district = v,
+                validator: (v) => v!.isEmpty ? "Required" : null,
               ),
               TextFormField(
                 decoration: const InputDecoration(labelText: "Mandal"),
                 onChanged: (v) => mandal = v,
+                validator: (v) => v!.isEmpty ? "Required" : null,
               ),
               TextFormField(
                 decoration: const InputDecoration(labelText: "Village"),
                 onChanged: (v) => village = v,
+                validator: (v) => v!.isEmpty ? "Required" : null,
               ),
-
               CheckboxListTile(
-                value: accepted,
-                onChanged: (v) => setState(() => accepted = v!),
-                title: const Text("Accept Terms & Conditions"),
+                value: agreed,
+                onChanged: (v) => setState(() => agreed = v!),
+                title: const Text("I accept Terms & Conditions"),
               ),
-
+              const SizedBox(height: 10),
               ElevatedButton(
                 onPressed: loading ? null : submit,
                 child: loading
@@ -96,33 +121,5 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         ),
       ),
     );
-  }
-
-  void submit() async {
-    if (!_formKey.currentState!.validate() || !accepted) return;
-
-    setState(() => loading = true);
-
-    final user = UserModel(
-      email: widget.email,
-      name: nameCtrl.text,
-      phone: phoneCtrl.text,
-      gender: gender,
-      district: district,
-      mandal: mandal,
-      village: village,
-    );
-
-    final success = await ApiService.registerUser(user);
-
-    setState(() => loading = false);
-
-    if (success) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Registered Successfully")));
-    } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Registration Failed")));
-    }
   }
 }
